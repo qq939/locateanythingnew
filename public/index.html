@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LocateAnything New</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <main class="app">
+      <aside class="panel">
+        <header><span>Local 8082</span><h1>LocateAnything 视频标注</h1></header>
+        <section>
+          <h2>视频</h2>
+          <label class="file-picker">
+            <input id="videoInput" type="file" accept="video/*">
+            <strong id="videoName">选择视频</strong>
+            <small id="videoMeta">本地预览，不上传视频文件</small>
+          </label>
+        </section>
+        <section>
+          <h2>LocateAnything</h2>
+          <div class="grid two">
+            <label>模式<select id="mode"><option value="detect">目标检测</option><option value="ground_multi">短语定位</option><option value="detect_text">OCR</option><option value="ground_gui">GUI定位</option><option value="point">指物</option></select></label>
+            <label>FPS<input id="fps" type="number" min="1" max="120" value="25"></label>
+          </div>
+          <label>目标/描述<input id="query" value="person, car, bicycle"></label>
+          <button id="locateBtn" class="primary">Locate 当前帧</button>
+        </section>
+        <section>
+          <h2>标注</h2>
+          <div class="toolbar"><button id="boxBtn">框选</button><button id="pointBtn">点选</button><button id="deleteBtn">删除选中</button><button id="clearBtn">清空本帧</button></div>
+          <label>Trace ID<input id="traceId" type="number" value="1000000"></label>
+          <label>类别<input id="label" value="Detect"></label>
+          <div class="stats"><div><small>当前帧</small><b id="frameStat">0</b></div><div><small>标注数</small><b id="countStat">0</b></div></div>
+        </section>
+        <section>
+          <h2>导出</h2>
+          <button id="saveBtn" class="primary">保存到 data/annotations.json</button>
+          <button id="downloadBtn">下载 JSON</button>
+          <p id="status">待机</p>
+        </section>
+      </aside>
+      <section class="stage">
+        <canvas id="canvas" width="1280" height="720"></canvas>
+        <video id="video" muted playsinline></video>
+        <div id="empty" class="empty">选择视频后开始标注</div>
+        <nav class="transport"><button id="prevBtn">上一帧</button><input id="frameInput" value="0"><button id="nextBtn">下一帧</button><span id="time">00:00.000</span></nav>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
