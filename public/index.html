@@ -48,6 +48,15 @@
             <label>解码<select id="generationMode"><option value="hybrid">hybrid</option><option value="fast">fast</option><option value="slow">slow</option></select></label>
           </div>
           <button id="locateBtn" class="primary">运行 LocateAnything 到当前帧</button>
+          <button id="prepareModelBtn">准备 / 下载模型</button>
+          <div class="progress-box">
+            <div class="progress-head">
+              <span id="progressLabel">模型进度</span>
+              <b id="progressPercent">0%</b>
+            </div>
+            <div class="progress-track"><i id="progressBar"></i></div>
+            <small id="progressDetail">尚未开始下载</small>
+          </div>
           <p id="modelStatus" class="status-line">正在检查模型环境...</p>
         </section>
 

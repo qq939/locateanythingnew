@@ -11,6 +11,7 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
 const LOG_DIR = path.join(ROOT, 'logs');
 const RUN_LOG = path.join(LOG_DIR, 'run.log');
+const MODEL_PROGRESS_FILE = path.join(DATA_DIR, 'model_progress.json');
 const PYTHON = process.env.PYTHON || 'python3';
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -25,6 +26,7 @@ let worker = null;
 let workerReady = null;
 let workerRequests = new Map();
 let workerSeq = 0;
+let prepareProcess = null;
 
 function log(line) {
   const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -89,6 +91,47 @@ function checkModelStatus() {
   } catch (error) {
     return { ok: false, error: error.message, stderr: result.stderr };
   }
+}
+
+async function readModelProgress() {
+  try {
+    return JSON.parse(await fsp.readFile(MODEL_PROGRESS_FILE, 'utf8'));
+  } catch {
+    return {
+      ok: true,
+      running: false,
+      phase: 'idle',
+      message: '模型尚未开始下载',
+      percent: 0,
+      model: process.env.LOCATEANYTHING_MODEL || 'nvidia/LocateAnything-3B',
+    };
+  }
+}
+
+function startModelPrepare() {
+  if (prepareProcess && prepareProcess.exitCode === null) return { ok: true, alreadyRunning: true };
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(MODEL_PROGRESS_FILE, JSON.stringify({
+    ok: true,
+    running: true,
+    phase: 'starting',
+    message: '正在启动模型下载任务',
+    percent: 0,
+    model: process.env.LOCATEANYTHING_MODEL || 'nvidia/LocateAnything-3B',
+    updatedAt: Date.now() / 1000,
+  }, null, 2));
+  prepareProcess = spawn(PYTHON, ['locateanything_model_prepare.py'], {
+    cwd: ROOT,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: process.env,
+  });
+  prepareProcess.stdout.on('data', (chunk) => log(`prepare stdout: ${chunk.toString().trim()}`));
+  prepareProcess.stderr.on('data', (chunk) => log(`prepare stderr: ${chunk.toString().trim()}`));
+  prepareProcess.on('exit', (code, signal) => {
+    log(`prepare exit code=${code} signal=${signal}`);
+    prepareProcess = null;
+  });
+  return { ok: true, alreadyRunning: false };
 }
 
 function stopWorker() {
@@ -184,7 +227,19 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && url.pathname === '/api/model-status') {
-      json(res, 200, checkModelStatus());
+      const status = checkModelStatus();
+      status.progress = await readModelProgress();
+      json(res, 200, status);
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/model-progress') {
+      json(res, 200, await readModelProgress());
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/prepare-model') {
+      json(res, 200, startModelPrepare());
       return;
     }
 

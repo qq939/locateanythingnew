@@ -18,6 +18,8 @@
 - 保存到 `data/annotations.json`
 - 下载标注 JSON
 - `/api/model-status` 展示 Python 依赖与模型环境状态
+- `/api/prepare-model` 启动模型下载任务，网页显示下载进度条
+- `/api/model-progress` 返回模型下载阶段、百分比、当前文件和文件数
 
 ## 启动
 
@@ -42,6 +44,7 @@ http://localhost:8082
 ```bash
 curl http://localhost:8082/health
 curl http://localhost:8082/api/model-status
+curl http://localhost:8082/api/model-progress
 ```
 
 ## LocateAnything 接入
@@ -64,3 +67,19 @@ LOCATEANYTHING_MOCK=1 ./user_start.sh
 ```
 
 最终部署默认不启用 mock。
+
+## 模型下载进度
+
+点击网页左侧的“准备 / 下载模型”会调用：
+
+```bash
+POST /api/prepare-model
+```
+
+后端会启动 `locateanything_model_prepare.py`，用 Hugging Face Hub 枚举模型文件并逐个下载，同时把进度写到 `data/model_progress.json`。前端每 1.5 秒轮询：
+
+```bash
+GET /api/model-progress
+```
+
+页面会展示下载阶段、百分比、当前文件、已完成文件数和总文件数。下载完成后进度为 `100%`；首次推理仍需要把模型权重加载到内存。

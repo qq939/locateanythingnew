@@ -23,6 +23,22 @@ function setStatus(text, type = '') {
   $('status').className = `status-line ${type}`;
 }
 
+async function fetchJson(url, options) {
+  const res = await fetch(url, options);
+  const text = await res.text();
+  try {
+    const data = JSON.parse(text);
+    if (!res.ok) data.ok = false;
+    return data;
+  } catch {
+    return {
+      ok: false,
+      error: `${url} 返回了非 JSON 响应：${text.slice(0, 160) || res.statusText}`,
+      status: res.status,
+    };
+  }
+}
+
 function frameTime(frame = state.frame) {
   return frame / Math.max(1, state.fps);
 }
@@ -198,12 +214,11 @@ async function locateFrame() {
       frame: state.frame,
       fps: state.fps,
     };
-    const res = await fetch('/api/locate', {
+    const data = await fetchJson('/api/locate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const data = await res.json();
     $('rawAnswer').textContent = data.answer || data.error || '无输出';
     if (!data.ok) {
       setStatus(data.error || 'LocateAnything 调用失败', 'bad');
@@ -350,19 +365,17 @@ function downloadJson(payload) {
 
 async function saveJson() {
   const payload = exportPayload();
-  const res = await fetch('/api/save', {
+  const data = await fetchJson('/api/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const data = await res.json();
   setStatus(data.ok ? `已保存 ${data.annotations} 条标注到 data/annotations.json` : data.error, data.ok ? 'ok' : 'bad');
 }
 
 async function checkModel() {
   try {
-    const res = await fetch('/api/model-status');
-    const data = await res.json();
+    const data = await fetchJson('/api/model-status');
     state.modelReady = Boolean(data.ok);
     const modules = data.modules || {};
     const missing = Object.entries(modules).filter(([, value]) => !value.ok).map(([name]) => name);
@@ -370,12 +383,55 @@ async function checkModel() {
       $('modelStatus').textContent = data.mock ? '模型环境正常，当前启用 MOCK 模式' : `模型环境正常：${data.model}`;
       $('modelStatus').className = 'status-line ok';
     } else {
-      $('modelStatus').textContent = `模型环境缺依赖：${missing.join(', ') || data.error}`;
+      $('modelStatus').textContent = missing.length ? `模型环境缺依赖：${missing.join(', ')}` : `模型环境检查失败：${data.error}`;
       $('modelStatus').className = 'status-line bad';
     }
+    updateProgress(data.progress);
   } catch (error) {
     $('modelStatus').textContent = `模型环境检查失败：${error.message}`;
     $('modelStatus').className = 'status-line bad';
+  }
+}
+
+function updateProgress(progress = {}) {
+  const percent = Math.max(0, Math.min(100, Number(progress.percent || 0)));
+  $('progressBar').style.width = `${percent}%`;
+  $('progressPercent').textContent = `${Math.round(percent)}%`;
+  $('progressLabel').textContent = progress.phase ? `模型进度：${progress.phase}` : '模型进度';
+  const files = progress.totalFiles ? ` · ${progress.downloadedFiles || 0}/${progress.totalFiles} 文件` : '';
+  $('progressDetail').textContent = `${progress.message || '尚未开始下载'}${files}`;
+  if (progress.running) scheduleProgressPolling();
+}
+
+let progressTimer = null;
+function scheduleProgressPolling() {
+  if (progressTimer) return;
+  progressTimer = setInterval(refreshProgress, 1500);
+}
+
+async function refreshProgress() {
+  const progress = await fetchJson('/api/model-progress');
+  updateProgress(progress);
+  if (!progress.running && progressTimer) {
+    clearInterval(progressTimer);
+    progressTimer = null;
+    checkModel();
+  }
+}
+
+async function prepareModel() {
+  $('prepareModelBtn').disabled = true;
+  updateProgress({ phase: 'starting', message: '正在启动模型下载任务', percent: 0, running: true });
+  try {
+    const data = await fetchJson('/api/prepare-model', { method: 'POST' });
+    if (!data.ok) {
+      $('modelStatus').textContent = `模型下载启动失败：${data.error}`;
+      $('modelStatus').className = 'status-line bad';
+    }
+    scheduleProgressPolling();
+    await refreshProgress();
+  } finally {
+    $('prepareModelBtn').disabled = false;
   }
 }
 
@@ -410,6 +466,7 @@ $('selectBtn').addEventListener('click', () => setTool('select'));
 $('boxBtn').addEventListener('click', () => setTool('box'));
 $('pointBtn').addEventListener('click', () => setTool('point'));
 $('locateBtn').addEventListener('click', locateFrame);
+$('prepareModelBtn').addEventListener('click', prepareModel);
 $('saveBtn').addEventListener('click', saveJson);
 $('downloadBtn').addEventListener('click', () => downloadJson(exportPayload()));
 $('acceptAllBtn').addEventListener('click', () => {
