@@ -49,6 +49,14 @@ curl http://localhost:8082/api/model-status
 curl http://localhost:8082/api/model-progress
 ```
 
+`/api/model-status` 会返回实际使用的 Python 路径。正常情况下应指向项目内：
+
+```text
+.venv/bin/python
+```
+
+如果看到系统 `python3` 且提示 `No module named 'torch'`，说明服务没有使用项目虚拟环境。当前 `server.js` 已内置兜底逻辑：即使直接执行 `node server.js`，也会优先选择项目 `.venv/bin/python`。
+
 ## LocateAnything 接入
 
 本项目包含 NVlabs/Eagle `Embodied/locateanything_worker.py` 的 worker API，并通过 `locateanything_service.py` 包装成 Node 可调用的常驻 Python 子进程。

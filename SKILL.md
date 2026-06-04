@@ -20,6 +20,7 @@
 - `public/index.html`：三栏视频标注工作台。
 - `public/app.js`：视频帧控制、画布标注、结果列表、导出。
 - 批量标注由前端逐帧 seek、截图、调用 `/api/locate` 完成；默认帧间隔 `1` 表示全帧处理。
+- Python worker 必须使用项目 `.venv/bin/python`。`server.js` 会在未设置 `PYTHON` 时自动优先选择 `.venv/bin/python`，避免系统 Python 缺 `torch`。
 - `public/style.css`：工作台 UI。
 
 ## 交付检查

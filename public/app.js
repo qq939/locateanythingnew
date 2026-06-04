@@ -463,7 +463,8 @@ async function checkModel() {
     const modules = data.modules || {};
     const missing = Object.entries(modules).filter(([, value]) => !value.ok).map(([name]) => name);
     if (data.ok) {
-      $('modelStatus').textContent = data.mock ? '模型环境正常，当前启用 MOCK 模式' : `模型环境正常：${data.model}`;
+      const python = data.python ? ` · Python: ${data.python}` : '';
+      $('modelStatus').textContent = data.mock ? `模型环境正常，当前启用 MOCK 模式${python}` : `模型环境正常：${data.model}${python}`;
       $('modelStatus').className = 'status-line ok';
     } else {
       $('modelStatus').textContent = missing.length ? `模型环境缺依赖：${missing.join(', ')}` : `模型环境检查失败：${data.error}`;

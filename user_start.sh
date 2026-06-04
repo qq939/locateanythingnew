@@ -24,9 +24,20 @@ then
   echo "Installing LocateAnything Python dependencies..." >> "${LOG_DIR}/start.log"
   "${PYTHON_BIN}" -m pip install --upgrade pip >> "${LOG_DIR}/start.log" 2>&1 || true
   "${PYTHON_BIN}" -m pip install -r "${PROJECT_DIR}/requirements.txt" >> "${LOG_DIR}/start.log" 2>&1 || {
-    echo "Python dependency installation failed; web UI will still start and show model status." >> "${LOG_DIR}/start.log"
+    echo "Python dependency installation failed; web UI will start but LocateAnything cannot run until dependencies install." >> "${LOG_DIR}/start.log"
   }
 fi
+echo "Using Python: ${PYTHON_BIN}" >> "${LOG_DIR}/start.log"
+"${PYTHON_BIN}" - <<'PY' >> "${LOG_DIR}/start.log" 2>&1 || true
+import sys
+print("Python executable:", sys.executable)
+for name in ("torch", "transformers", "PIL", "huggingface_hub"):
+    try:
+        mod = __import__(name)
+        print(f"{name}: {getattr(mod, '__version__', 'ok')}")
+    except Exception as exc:
+        print(f"{name}: MISSING {exc}")
+PY
 if command -v lsof >/dev/null 2>&1; then
   PIDS="$(lsof -ti tcp:8082 2>/dev/null || true)"
   if [ -n "${PIDS}" ]; then kill ${PIDS} 2>/dev/null || true; sleep 1; fi

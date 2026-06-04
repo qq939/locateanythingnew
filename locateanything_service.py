@@ -33,6 +33,7 @@ def dependency_status() -> dict[str, Any]:
         "ok": all(item["ok"] for item in modules.values()),
         "mock": MOCK,
         "model": MODEL_NAME,
+        "python": sys.executable,
         "modules": modules,
     }
 
