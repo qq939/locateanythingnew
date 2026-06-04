@@ -3,50 +3,134 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>LocateAnything New</title>
+    <title>LocateAnything 视频标注工作台</title>
     <link rel="stylesheet" href="/style.css">
   </head>
   <body>
-    <main class="app">
-      <aside class="panel">
-        <header><span>Local 8082</span><h1>LocateAnything 视频标注</h1></header>
-        <section>
-          <h2>视频</h2>
-          <label class="file-picker">
+    <main class="workspace">
+      <aside class="left-rail">
+        <header class="brand">
+          <span>8082 / LocateAnything</span>
+          <h1>视频标注工作台</h1>
+        </header>
+
+        <section class="step">
+          <div class="step-title"><b>1</b><h2>视频源</h2></div>
+          <label class="video-picker">
             <input id="videoInput" type="file" accept="video/*">
-            <strong id="videoName">选择视频</strong>
-            <small id="videoMeta">本地预览，不上传视频文件</small>
+            <strong id="videoName">选择本地视频</strong>
+            <small id="videoMeta">视频只在浏览器本地预览，标注 JSON 才会保存</small>
           </label>
-        </section>
-        <section>
-          <h2>LocateAnything</h2>
-          <div class="grid two">
-            <label>模式<select id="mode"><option value="detect">目标检测</option><option value="ground_multi">短语定位</option><option value="detect_text">OCR</option><option value="ground_gui">GUI定位</option><option value="point">指物</option></select></label>
-            <label>FPS<input id="fps" type="number" min="1" max="120" value="25"></label>
+          <div class="metric-grid">
+            <div><small>FPS</small><input id="fps" type="number" min="1" max="120" value="25"></div>
+            <div><small>总帧数</small><strong id="totalFrames">0</strong></div>
           </div>
-          <label>目标/描述<input id="query" value="person, car, bicycle"></label>
-          <button id="locateBtn" class="primary">Locate 当前帧</button>
         </section>
-        <section>
-          <h2>标注</h2>
-          <div class="toolbar"><button id="boxBtn">框选</button><button id="pointBtn">点选</button><button id="deleteBtn">删除选中</button><button id="clearBtn">清空本帧</button></div>
-          <label>Trace ID<input id="traceId" type="number" value="1000000"></label>
-          <label>类别<input id="label" value="Detect"></label>
-          <div class="stats"><div><small>当前帧</small><b id="frameStat">0</b></div><div><small>标注数</small><b id="countStat">0</b></div></div>
+
+        <section class="step">
+          <div class="step-title"><b>2</b><h2>LocateAnything 任务</h2></div>
+          <label>任务类型
+            <select id="mode">
+              <option value="detect">目标检测：多类别</option>
+              <option value="ground_multi">短语定位：多个目标</option>
+              <option value="ground_single">短语定位：单个目标</option>
+              <option value="detect_text">文字定位 OCR</option>
+              <option value="ground_text">指定文字定位</option>
+              <option value="ground_gui">GUI 元素定位</option>
+              <option value="point">指物：返回点</option>
+            </select>
+          </label>
+          <label>类别 / 描述
+            <textarea id="query" rows="3">person, car, bicycle</textarea>
+          </label>
+          <div class="row">
+            <label>输出<select id="outputType"><option value="box">框</option><option value="point">点</option></select></label>
+            <label>解码<select id="generationMode"><option value="hybrid">hybrid</option><option value="fast">fast</option><option value="slow">slow</option></select></label>
+          </div>
+          <button id="locateBtn" class="primary">运行 LocateAnything 到当前帧</button>
+          <p id="modelStatus" class="status-line">正在检查模型环境...</p>
         </section>
-        <section>
-          <h2>导出</h2>
-          <button id="saveBtn" class="primary">保存到 data/annotations.json</button>
-          <button id="downloadBtn">下载 JSON</button>
-          <p id="status">待机</p>
+
+        <section class="step">
+          <div class="step-title"><b>3</b><h2>人工修正</h2></div>
+          <div class="tool-grid">
+            <button id="selectBtn" class="active">选择</button>
+            <button id="boxBtn">画框</button>
+            <button id="pointBtn">点选</button>
+            <button id="deleteBtn">删除选中</button>
+          </div>
+          <div class="row">
+            <label>Trace ID<input id="traceId" type="number" value="1000000"></label>
+            <label>类别<input id="label" value="Object"></label>
+          </div>
+          <button id="clearBtn">清空当前帧标注</button>
         </section>
       </aside>
-      <section class="stage">
-        <canvas id="canvas" width="1280" height="720"></canvas>
-        <video id="video" muted playsinline></video>
-        <div id="empty" class="empty">选择视频后开始标注</div>
-        <nav class="transport"><button id="prevBtn">上一帧</button><input id="frameInput" value="0"><button id="nextBtn">下一帧</button><span id="time">00:00.000</span></nav>
+
+      <section class="stage-column">
+        <div class="stage-head">
+          <div>
+            <span id="videoState">未加载视频</span>
+            <h2 id="frameTitle">Frame 0</h2>
+          </div>
+          <div class="frame-stats">
+            <div><small>当前帧标注</small><strong id="frameCount">0</strong></div>
+            <div><small>全部标注</small><strong id="allCount">0</strong></div>
+          </div>
+        </div>
+
+        <div class="canvas-shell">
+          <canvas id="canvas" width="1280" height="720"></canvas>
+          <video id="video" muted playsinline></video>
+          <div id="empty" class="empty-state">
+            <strong>先选择视频</strong>
+            <span>然后运行 LocateAnything 或手动画框，结果会直接显示在右侧列表和画面上。</span>
+          </div>
+        </div>
+
+        <nav class="transport">
+          <button id="prevBtn">上一帧</button>
+          <label>帧<input id="frameInput" value="0" inputmode="numeric"></label>
+          <button id="nextBtn">下一帧</button>
+          <span id="time">00:00.000</span>
+        </nav>
       </section>
+
+      <aside class="right-rail">
+        <section class="result-card">
+          <header>
+            <div>
+              <span>Review</span>
+              <h2>当前帧标注结果</h2>
+            </div>
+            <button id="acceptAllBtn">全部保留</button>
+          </header>
+          <div id="currentResults" class="result-list empty-list">当前帧还没有标注</div>
+        </section>
+
+        <section class="result-card">
+          <header>
+            <div>
+              <span>Timeline</span>
+              <h2>全部帧结果</h2>
+            </div>
+            <button id="downloadBtn">下载 JSON</button>
+          </header>
+          <div id="timelineResults" class="timeline-list empty-list">暂无标注结果</div>
+        </section>
+
+        <section class="result-card export-card">
+          <header>
+            <div>
+              <span>Export</span>
+              <h2>保存标注</h2>
+            </div>
+          </header>
+          <button id="saveBtn" class="primary">保存到 data/annotations.json</button>
+          <pre id="rawAnswer">LocateAnything 原始输出会显示在这里。</pre>
+          <p id="status" class="status-line">待机</p>
+        </section>
+      </aside>
     </main>
     <script src="/app.js"></script>
   </body>

@@ -2,6 +2,7 @@ logs/
 sessions/
 data/
 node_modules/
+.venv/
 .DS_Store
 *.log
 .env

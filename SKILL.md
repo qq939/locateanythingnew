@@ -1,30 +1,32 @@
-# SKILL.md - LocateAnything New
+# Project Skill
 
-This project is a simple local video annotation web app on port 8082.
+维护这个项目时，核心目标始终是“视频标注工作台”，不是展示页。
 
-## Run
+## 运行
 
-```bash
-./user_start.sh
-```
+- 固定端口：`8082`
+- 启动：`./user_start.sh`
+- 健康检查：`/health`
+- 模型环境检查：`/api/model-status`
 
-The script frees port 8082 and starts `node server.js`, preferably in a detached `screen` session.
+## 架构
 
-## Verify
+- `server.js`：静态页面服务、JSON 保存、LocateAnything Python worker 桥接。
+- `locateanything_worker.py`：来自 NVlabs/Eagle 的 LocateAnything worker API。
+- `locateanything_service.py`：行分隔 JSON 协议，把 worker 暴露给 Node 子进程。
+- `public/index.html`：三栏视频标注工作台。
+- `public/app.js`：视频帧控制、画布标注、结果列表、导出。
+- `public/style.css`：工作台 UI。
+
+## 交付检查
+
+每次修改后至少检查：
 
 ```bash
 node --check server.js
-curl -s http://127.0.0.1:8082/health
+python3 -m py_compile locateanything_service.py locateanything_worker.py
+curl http://127.0.0.1:8082/health
+curl http://127.0.0.1:8082/api/model-status
 ```
 
-Browser smoke test:
-
-1. Upload a video.
-2. Confirm the first frame renders.
-3. Draw a box.
-4. Click Locate current frame.
-5. Save JSON and confirm `data/annotations.json` exists.
-
-## Notes
-
-`/api/locate` is currently a demo response endpoint. Keep the UI simple; add real model integration only when the runtime is ready.
+前端改动要用浏览器或 Playwright 验证：上传视频、手动画框、保存 JSON、结果列表可见。
