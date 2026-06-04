@@ -9,3 +9,4 @@ eb85fa5 chore: record permission fix commit
 b834acf chore: keep server entrypoint non-executable
 94b1d71 feat: implement LocateAnything video annotation workflow
 7980ff7 feat: add model download progress UI
+28ab179 feat: add all-frame LocateAnything batch annotation
