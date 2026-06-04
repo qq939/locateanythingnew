@@ -11,3 +11,4 @@ b834acf chore: keep server entrypoint non-executable
 7980ff7 feat: add model download progress UI
 28ab179 feat: add all-frame LocateAnything batch annotation
 cd12783 chore: sync workspace state and update platform docs
+59622ed chore: ignore platform-managed template files
