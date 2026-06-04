@@ -365,12 +365,13 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhY3drbWR
 十四、Claude Ask Server 服务
 ================================================================================
 
-每个 claude agent 卡片都要有一个初始的 server.js 服务，端口 8082，路径 `/ask/claude`，GET 访问，参数 `q="你要问的问题"`。支持 base64 编码，返回纯文本。底层依赖就是 `run_claude.js`。
+每个 claude agent 卡片都要有一个初始的 server.js 服务，端口 8082，路径 `/ask/claude`，GET 访问，参数 `q="你要问的问题"`。支持 base64 编码，返回纯文本。底层必须调用 `run_claude.js`，不要在 `/ask/claude` 里直接调用 `claude` CLI；这样问题和 AI 回答才会统一记录到 `logs/agent_tui.log`。
 
 ### 14.1 server.js 实现
 
 ```javascript
 const http = require('http');
+const path = require('path');
 const { spawn } = require('child_process');
 
 const PORT = 8082;
@@ -410,11 +411,15 @@ const server = http.createServer((req, res) => {
         const fullMessage = `${systemPrompt}\n\n${question}`;
         const msgB64 = Buffer.from(fullMessage).toString('base64');
         
-        const child = spawn('claude', ['--dangerously-skip-permissions', '--continue', '-p', '/dev/stdin'], {
+        const child = spawn('node', [path.join(WORKSPACE_DIR, 'run_claude.js')], {
             cwd: WORKSPACE_DIR,
-            stdio: ['pipe', 'pipe', 'pipe'],
-            shell: true,
-            env: { ...process.env, ANTHROPIC_DISABLE_PREFLIGHT: '1' }
+            stdio: ['ignore', 'pipe', 'pipe'],
+            env: {
+                ...process.env,
+                ANTHROPIC_DISABLE_PREFLIGHT: '1',
+                CLAUDE_CAPTURE_STDIO: '1',
+                CLAUDE_MSG: msgB64
+            }
         });
         
         let stdout = '';
@@ -443,14 +448,11 @@ const server = http.createServer((req, res) => {
             res.end(`Spawn error: ${err.message}`);
         });
         
-        child.stdin.write(msgB64);
-        child.stdin.end();
-        
-        const timeout = setTimeout(() => {{
+        const timeout = setTimeout(() => {
             child.kill('SIGTERM');
-            res.writeHead(504, {{ 'Content-Type': 'text/plain; charset=utf-8' }});
+            res.writeHead(504, { 'Content-Type': 'text/plain; charset=utf-8' });
             res.end('Request timeout (60 minutes)');
-        }}, TIMEOUT_MS);
+        }, TIMEOUT_MS);
         
         child.on('close', () => clearTimeout(timeout));
         
