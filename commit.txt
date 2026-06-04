@@ -8,3 +8,4 @@ f277179 chore: record server.js chmod commit
 eb85fa5 chore: record permission fix commit
 b834acf chore: keep server entrypoint non-executable
 94b1d71 feat: implement LocateAnything video annotation workflow
+7980ff7 feat: add model download progress UI
