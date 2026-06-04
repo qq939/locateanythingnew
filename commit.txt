@@ -1,4 +1,5 @@
 40d5482 initial commit of LocateAnything New video annotator
 56b0b59 chore: record initial commit in commit.txt
 36d532b chore: record second commit in commit.txt
+9d46917 chore: fix startup script permissions
 89766cd chore: make server.js executable
