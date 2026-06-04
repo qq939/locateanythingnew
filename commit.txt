@@ -10,5 +10,6 @@ b834acf chore: keep server entrypoint non-executable
 94b1d71 feat: implement LocateAnything video annotation workflow
 7980ff7 feat: add model download progress UI
 28ab179 feat: add all-frame LocateAnything batch annotation
+c9126ee fix: force LocateAnything worker to use project venv
 cd12783 chore: sync workspace state and update platform docs
 59622ed chore: ignore platform-managed template files
