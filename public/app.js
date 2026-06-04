@@ -14,6 +14,8 @@ const state = {
   dragStart: null,
   dragNow: null,
   modelReady: false,
+  batchRunning: false,
+  batchAbort: false,
 };
 
 const colors = ['#6db3ff', '#91df86', '#f0c869', '#ff7d8f', '#b58cff', '#71e1cf'];
@@ -195,6 +197,54 @@ function frameImage() {
   return canvas.toDataURL('image/jpeg', 0.9);
 }
 
+function locatePayload(frame) {
+  return {
+    mode: $('mode').value,
+    query: $('query').value,
+    outputType: $('outputType').value,
+    generationMode: $('generationMode').value,
+    image: frameImage(),
+    width: canvas.width,
+    height: canvas.height,
+    frame,
+    fps: state.fps,
+  };
+}
+
+async function runLocateRequest(frame) {
+  return fetchJson('/api/locate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(locatePayload(frame)),
+  });
+}
+
+function addLocateResults(data, frame) {
+  const items = anns(frame).slice();
+  const query = $('query').value.trim() || $('mode').value;
+  for (const box of data.boxes || []) {
+    items.push(newAnn({
+      kind: 'box',
+      bbox: [box.x1, box.y1, box.x2, box.y2],
+      label: box.label || query,
+      confidence: box.confidence,
+      source: data.mock ? 'mock' : 'locateanything',
+      rawAnswer: data.answer,
+    }));
+  }
+  for (const point of data.points || []) {
+    items.push(newAnn({
+      kind: 'point',
+      point: [point.x, point.y],
+      label: point.label || query,
+      source: data.mock ? 'mock' : 'locateanything',
+      rawAnswer: data.answer,
+    }));
+  }
+  setAnns(items, frame);
+  return (data.boxes || []).length + (data.points || []).length;
+}
+
 async function locateFrame() {
   if (!video.videoWidth) {
     setStatus('请先选择视频', 'bad');
@@ -203,57 +253,90 @@ async function locateFrame() {
   $('locateBtn').disabled = true;
   setStatus('LocateAnything 正在处理当前帧，首次加载模型会比较久...', '');
   try {
-    const payload = {
-      mode: $('mode').value,
-      query: $('query').value,
-      outputType: $('outputType').value,
-      generationMode: $('generationMode').value,
-      image: frameImage(),
-      width: canvas.width,
-      height: canvas.height,
-      frame: state.frame,
-      fps: state.fps,
-    };
-    const data = await fetchJson('/api/locate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    const data = await runLocateRequest(state.frame);
     $('rawAnswer').textContent = data.answer || data.error || '无输出';
     if (!data.ok) {
       setStatus(data.error || 'LocateAnything 调用失败', 'bad');
       return;
     }
 
-    const items = anns().slice();
-    const query = $('query').value.trim() || $('mode').value;
-    for (const box of data.boxes || []) {
-      items.push(newAnn({
-        kind: 'box',
-        bbox: [box.x1, box.y1, box.x2, box.y2],
-        label: box.label || query,
-        confidence: box.confidence,
-        source: data.mock ? 'mock' : 'locateanything',
-        rawAnswer: data.answer,
-      }));
-    }
-    for (const point of data.points || []) {
-      items.push(newAnn({
-        kind: 'point',
-        point: [point.x, point.y],
-        label: point.label || query,
-        source: data.mock ? 'mock' : 'locateanything',
-        rawAnswer: data.answer,
-      }));
-    }
-    setAnns(items);
+    const added = addLocateResults(data, state.frame);
     draw();
-    const added = (data.boxes || []).length + (data.points || []).length;
     setStatus(`已把 ${added} 个 LocateAnything 结果落到当前帧`, added ? 'ok' : '');
   } catch (error) {
     setStatus(error.message, 'bad');
   } finally {
     $('locateBtn').disabled = false;
+  }
+}
+
+function updateBatchProgress(done, total, frame, message = '') {
+  const percent = total ? Math.round((done / total) * 100) : 0;
+  $('batchProgressBar').style.width = `${percent}%`;
+  $('batchProgressPercent').textContent = `${percent}%`;
+  $('batchProgressLabel').textContent = state.batchRunning ? '批量进度：运行中' : '批量进度';
+  $('batchProgressDetail').textContent = message || `已处理 ${done}/${total} 帧，当前 F${frame}`;
+}
+
+function batchFrames() {
+  const maxFrame = Math.max(0, state.totalFrames - 1);
+  const start = Math.max(0, Math.min(maxFrame, Number($('batchStart').value) || 0));
+  const end = Math.max(start, Math.min(maxFrame, Number($('batchEnd').value) || maxFrame));
+  const step = Math.max(1, Number($('batchStep').value) || 1);
+  const frames = [];
+  for (let frame = start; frame <= end; frame += step) frames.push(frame);
+  return frames;
+}
+
+async function locateAllFrames() {
+  if (!video.videoWidth) {
+    setStatus('请先选择视频', 'bad');
+    return;
+  }
+  const frames = batchFrames();
+  if (!frames.length) return;
+
+  state.batchRunning = true;
+  state.batchAbort = false;
+  $('locateAllBtn').disabled = true;
+  $('locateBtn').disabled = true;
+  setStatus(`开始批量标注 ${frames.length} 帧`, '');
+  updateBatchProgress(0, frames.length, frames[0], '正在启动批量标注');
+
+  let done = 0;
+  let totalAdded = 0;
+  const originalFrame = state.frame;
+  try {
+    for (const frame of frames) {
+      if (state.batchAbort) break;
+      await seek(frame);
+      updateBatchProgress(done, frames.length, frame, `正在处理 F${frame} (${done + 1}/${frames.length})`);
+      const data = await runLocateRequest(frame);
+      $('rawAnswer').textContent = data.answer || data.error || '无输出';
+      if (!data.ok) throw new Error(`F${frame}: ${data.error || 'LocateAnything 调用失败'}`);
+      totalAdded += addLocateResults(data, frame);
+      done += 1;
+      draw();
+      updateBatchProgress(done, frames.length, frame, `已处理 F${frame}，累计新增 ${totalAdded} 个结果`);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    if (state.batchAbort) {
+      setStatus(`批量标注已停止：完成 ${done}/${frames.length} 帧，新增 ${totalAdded} 个结果`, '');
+      updateBatchProgress(done, frames.length, state.frame, `已停止：完成 ${done}/${frames.length} 帧`);
+    } else {
+      setStatus(`批量标注完成：处理 ${done} 帧，新增 ${totalAdded} 个结果`, 'ok');
+      updateBatchProgress(done, frames.length, state.frame, `完成：处理 ${done} 帧，新增 ${totalAdded} 个结果`);
+    }
+  } catch (error) {
+    setStatus(error.message, 'bad');
+    updateBatchProgress(done, frames.length, state.frame, `失败：${error.message}`);
+  } finally {
+    state.batchRunning = false;
+    state.batchAbort = false;
+    $('locateAllBtn').disabled = false;
+    $('locateBtn').disabled = false;
+    if (video.duration && !state.selected) await seek(Math.min(originalFrame, state.totalFrames - 1));
+    renderResults();
   }
 }
 
@@ -450,6 +533,8 @@ $('videoInput').addEventListener('change', () => {
 video.addEventListener('loadedmetadata', async () => {
   state.fps = Number($('fps').value || 25);
   state.totalFrames = Math.max(1, Math.ceil(video.duration * state.fps));
+  $('batchStart').value = '0';
+  $('batchEnd').value = String(Math.max(0, state.totalFrames - 1));
   await seek(0);
 });
 
@@ -466,6 +551,11 @@ $('selectBtn').addEventListener('click', () => setTool('select'));
 $('boxBtn').addEventListener('click', () => setTool('box'));
 $('pointBtn').addEventListener('click', () => setTool('point'));
 $('locateBtn').addEventListener('click', locateFrame);
+$('locateAllBtn').addEventListener('click', locateAllFrames);
+$('stopBatchBtn').addEventListener('click', () => {
+  state.batchAbort = true;
+  setStatus('正在停止批量标注，等待当前帧完成...', '');
+});
 $('prepareModelBtn').addEventListener('click', prepareModel);
 $('saveBtn').addEventListener('click', saveJson);
 $('downloadBtn').addEventListener('click', () => downloadJson(exportPayload()));

@@ -161,6 +161,20 @@ label {
   gap: 7px;
   margin-bottom: 8px;
 }
+.batch-box {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(0, 0, 0, .12);
+}
+.action-row {
+  display: grid;
+  grid-template-columns: 1fr 76px;
+  gap: 8px;
+}
 
 .stage-column {
   display: grid;
@@ -333,6 +347,7 @@ video { display: none; }
   border-radius: 7px;
   background: #111419;
 }
+.progress-box.compact { margin-top: 0; padding: 8px; }
 .progress-head {
   display: flex;
   justify-content: space-between;

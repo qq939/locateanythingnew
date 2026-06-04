@@ -48,6 +48,25 @@
             <label>解码<select id="generationMode"><option value="hybrid">hybrid</option><option value="fast">fast</option><option value="slow">slow</option></select></label>
           </div>
           <button id="locateBtn" class="primary">运行 LocateAnything 到当前帧</button>
+          <div class="batch-box">
+            <div class="row">
+              <label>起始帧<input id="batchStart" type="number" min="0" value="0"></label>
+              <label>结束帧<input id="batchEnd" type="number" min="0" value="0"></label>
+            </div>
+            <label>帧间隔<input id="batchStep" type="number" min="1" value="1"></label>
+            <div class="action-row">
+              <button id="locateAllBtn" class="primary">运行 LocateAnything 到所有帧</button>
+              <button id="stopBatchBtn">停止</button>
+            </div>
+            <div class="progress-box compact">
+              <div class="progress-head">
+                <span id="batchProgressLabel">批量进度</span>
+                <b id="batchProgressPercent">0%</b>
+              </div>
+              <div class="progress-track"><i id="batchProgressBar"></i></div>
+              <small id="batchProgressDetail">尚未开始批量标注</small>
+            </div>
+          </div>
           <button id="prepareModelBtn">准备 / 下载模型</button>
           <div class="progress-box">
             <div class="progress-head">

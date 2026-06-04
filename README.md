@@ -6,6 +6,8 @@
 
 - 本地视频预览与逐帧跳转
 - 当前帧框选、点选、删除、清空
+- 运行 LocateAnything 到当前帧
+- 运行 LocateAnything 到所有帧或指定帧段，支持帧间隔抽帧和停止
 - 调用 `locateanything_worker.py` 支持的任务：
   - `detect`
   - `ground_single`
@@ -59,6 +61,8 @@ curl http://localhost:8082/api/model-progress
 4. Python 调用 `LocateAnythingWorker("nvidia/LocateAnything-3B")`。
 5. 解析 `<box><x1><y1><x2><y2></box>` 和 `<box><x><y></box>`。
 6. 前端把 boxes/points 写入当前帧标注并刷新结果列表。
+
+批量标注会在浏览器内逐帧 seek 视频并把每一帧截图发送到 `/api/locate`。默认起始帧为 `0`，结束帧为视频最后一帧，帧间隔为 `1`，也就是逐帧跑完整视频；长视频可以提高帧间隔做抽帧。
 
 首次真实推理会下载并加载 `nvidia/LocateAnything-3B`，耗时取决于网络、磁盘和设备。开发调试可临时设置：
 

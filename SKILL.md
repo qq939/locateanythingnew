@@ -19,6 +19,7 @@
 - `locateanything_model_prepare.py`：Hugging Face 模型预下载任务，写入 `data/model_progress.json` 供网页进度条轮询。
 - `public/index.html`：三栏视频标注工作台。
 - `public/app.js`：视频帧控制、画布标注、结果列表、导出。
+- 批量标注由前端逐帧 seek、截图、调用 `/api/locate` 完成；默认帧间隔 `1` 表示全帧处理。
 - `public/style.css`：工作台 UI。
 
 ## 交付检查
@@ -33,4 +34,4 @@ curl http://127.0.0.1:8082/api/model-status
 curl http://127.0.0.1:8082/api/model-progress
 ```
 
-前端改动要用浏览器或 Playwright 验证：上传视频、手动画框、保存 JSON、结果列表可见。
+前端改动要用浏览器或 Playwright 验证：上传视频、当前帧 Locate、全帧/帧段批量 Locate、手动画框、保存 JSON、结果列表可见。
